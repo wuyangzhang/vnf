@@ -1,7 +1,7 @@
 import collections
 
-from node import Node
-from link import Link
+from .node import Node
+from .link import Link
 
 class Topology:
     def __init__(self):
@@ -40,6 +40,9 @@ class Topology:
                 self.links[a, b] = Link(a, b, 100)
 
         return self.topology
+
+    def get_nodes(self):
+        return list(self.topology.keys())
 
 
 if __name__ == '__main__':
