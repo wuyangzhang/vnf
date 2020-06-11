@@ -6,9 +6,13 @@ class VirtualNetworkFunction:
         self.memory = mem # GB
         self.CPU = cpu # count
         self.throughput = thr # Mbps
+        self.attached_server = None
 
     def __str__(self):
         return 'id: {}, requested CPU num: {}, requested memory: {} GB, throughput: {} Mbps'.format(self.id, self.CPU, self.memory, self.throughput)
+
+    def attach_server(self, server):
+        self.attached_server = server
 
     @staticmethod
     def get_random_vnf():

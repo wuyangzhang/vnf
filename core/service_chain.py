@@ -5,9 +5,9 @@ import uuid
 from .virtualNetworkFunction import VirtualNetworkFunction
 
 class ServiceChain:
-    def __init__(self, id, chain):
+    def __init__(self, id, vnfs):
         self.id = id
-        self.chain = chain
+        self.vnfs = vnfs
 
     def next_VNF(self, vnf: VirtualNetworkFunction):
         '''
@@ -15,15 +15,18 @@ class ServiceChain:
         :param vnf: the current reference VNF
         :return: the next VNF in the chain. Return None if the current VNF is the last one or the current VNF does not exist in the chain
         '''
-        for i, v in enumerate(self.chain):
+        for i, v in enumerate(self.vnfs):
             if v == vnf:
-                if i == len(self.chain) - 1:
+                if i == len(self.vnfs) - 1:
                     return
-                return self.chain[i+1]
+                return self.vnfs[i + 1]
+
+    def get_VNFs(self):
+        return self.vnfs
 
     def __str__(self):
         s = ''
-        for v in self.chain:
+        for v in self.vnfs:
             s += v.__str__() + '\n'
         return s
 

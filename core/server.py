@@ -1,4 +1,5 @@
 import random
+from core.virtualNetworkFunction import VirtualNetworkFunction
 
 types = {'m4.large': (2, 8),
          'm4.xlarge': (4, 16),
@@ -15,6 +16,17 @@ class Server:
         self.used_cpus, self.used_mem = 0, 0
         self.avail_cpus = self.cpus
         self.avail_mem = self.mem
+        self.attached_vnfs = list()
+
+    def attach_vnf(self, vnf: VirtualNetworkFunction):
+        '''
+
+        :param vnf: the vnf to be attached
+        :return: True if successfully attached, otherwise return False
+        '''
+        self.attached_vnfs.append(vnf)
+
+        # update available resources
 
     @staticmethod
     def create_random_server(addr):

@@ -53,10 +53,9 @@ from core.topology import Topology
 from core.server import Server
 from core.service_chain import ServiceChain
 
+from algo import best_fit
 
 def main():
-    env = simpy.Environment()
-
     # step1: create network topology
     t = Topology()
     t.load_network_graph(path='./topology/topology.txt')
@@ -69,7 +68,9 @@ def main():
     chains = [ServiceChain.random_gen() for _ in range(10)]
 
     # step4: place service chains
+    best_fit(servers, chains)
 
+    env = simpy.Environment()
 
     # step5: generate packets
 
