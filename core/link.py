@@ -1,8 +1,9 @@
 class Link:
-    def __init__(self, from_node, to_node, bw):
+    def __init__(self, from_node, to_node, bw, latency):
         self.from_node = from_node
         self.to_node = to_node
         self.bandwidth = bw # Mbps
+        self.latency = latency
 
 
     def get_bw(self):

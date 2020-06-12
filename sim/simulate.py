@@ -53,6 +53,7 @@ from core.topology import Topology
 from core.server import Server
 from core.service_chain import ServiceChain
 from core.packet import Packet
+from core.routing import *
 
 from algo import best_fit
 
@@ -63,6 +64,7 @@ def main():
     t = Topology()
     t.load_network_graph(path='./topology/topology.txt')
     t.create_network_topology()
+    paths = cal_shortest_path(t.topology, t.links)
 
     # step2: initialize servers
     servers = Server.init_servers(t.get_nodes())
@@ -77,15 +79,21 @@ def main():
     #     s.print_avail_resources()
 
     # step5: generate the packet pool
-    packet = Packet.gen_packet(list(servers.keys()), chains)
+    packet_pool = Packet.gen_packet_pool(list(servers.keys()), chains, paths)
+
 
     # step5.5 create a packet from the packet pool
     env = simpy.Environment()
 
+    pipe = simpy.Store(env)
+
+    env.process(Packet.gen_packet(env, packet_pool, pipe))
+
+    env.run(10)
+
     # step6: simulate routing process.
     # processing delay + server queuing delay +
     # link queuing delay + link transmission delay + link propagation delay
-
 
     # step7: find the metrics
 

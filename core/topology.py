@@ -1,7 +1,10 @@
 import collections
 
+import numpy as np
+
 from .node import Node
 from .link import Link
+
 
 class Topology:
     def __init__(self):
@@ -37,7 +40,10 @@ class Topology:
             for nei in self.graph[n]:
                 a, b = self.nodes[n], self.nodes[nei]
                 self.topology[a].append(b)
-                self.links[a, b] = Link(a, b, 100)
+
+                # need to specify link bandwidth and latency
+                latency = np.random.poisson(40, 1)[0]
+                self.links[a, b] = Link(a, b, 100, latency)
 
         return self.topology
 

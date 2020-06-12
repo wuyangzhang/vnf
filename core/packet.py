@@ -1,5 +1,7 @@
 import random
 import numpy as np
+from .routing import find_shortest_path
+import simpy
 
 class Packet:
     def __init__(self, size, src, dest):
@@ -19,13 +21,29 @@ class Packet:
         return self.dest
 
     @staticmethod
-    def gen_packet(server_addrs, chains):
+    def gen_packet_pool(server_addrs, chains, paths):
         '''
         Randomly generate a packet by specifying its source/destination addresses and associated service chain.
         :param server_addrs:
         :param chains:
         :return:
         '''
-        size = np.random.poisson(1024, 1)[0]
-        src, dest = random.choice(server_addrs), random.choice(server_addrs)
-        return Packet(size, src, dest)
+        packets = []
+        routing_path = []
+        cnt = 1000
+        for _ in range(cnt):
+            size = np.random.poisson(1024, cnt)[0]
+            src, dest = random.choice(server_addrs), random.choice(server_addrs)
+            packets.append(Packet(size, src, dest))
+
+            path = find_shortest_path(paths, src, dest)
+            routing_path.append(path)
+
+        return packets
+
+    @staticmethod
+    def gen_packet(env, packets_pool, out_pipe):
+        while True:
+            yield env.timeout(1)
+            out_pipe.put(random.choice(packets_pool))
+
