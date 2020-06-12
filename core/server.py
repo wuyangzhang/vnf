@@ -18,15 +18,27 @@ class Server:
         self.avail_mem = self.mem
         self.attached_vnfs = list()
 
+    def print_avail_resources(self):
+        print('server {}: available CPU {}, available mem {}'.format(self.addr, self.avail_cpus, self.avail_mem))
+
+    def receive_packet(self):
+        pass
+
     def attach_vnf(self, vnf: VirtualNetworkFunction):
         '''
-
         :param vnf: the vnf to be attached
         :return: True if successfully attached, otherwise return False
         '''
+        # check demanded resources
+        if self.avail_cpus < vnf.CPU or self.avail_mem < vnf.memory:
+            return False
+
         self.attached_vnfs.append(vnf)
 
         # update available resources
+        self.avail_cpus -= vnf.CPU
+        self.avail_mem -= vnf.memory
+        return True
 
     @staticmethod
     def create_random_server(addr):

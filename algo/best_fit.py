@@ -15,7 +15,8 @@ def best_fit(servers: List[Server], chains: List[ServiceChain]):
             sorted_servers = list({k: v for k, v in sorted(servers.items(), key=lambda item: (-item[1].avail_cpus, -item[1].avail_mem))}.keys())
             selected_server = servers[sorted_servers[0]]
 
+            selected_server.print_avail_resources()
+            print(v)
             # attach the VNF to the selected server
-            v.attach_server(selected_server)
-
-            selected_server.attach_vnf(v)
+            if not selected_server.attach_vnf(v):
+                print('Warning: Not enough available resources to attach VNF {} to server {}\n'.format(v.id, selected_server.addr))

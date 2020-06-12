@@ -1,10 +1,11 @@
 import random
 
 class VirtualNetworkFunction:
-    def __init__(self, id, mem, cpu, thr):
+    def __init__(self, id, cpu, mem, thr):
         self.id = id
-        self.memory = mem # GB
+
         self.CPU = cpu # count
+        self.memory = mem  # GB
         self.throughput = thr # Mbps
         self.attached_server = None
 
