@@ -7,6 +7,7 @@ from .topology import Topology
 from .virtualNetworkFunction import VirtualNetworkFunction
 from .service_chain import ServiceChain
 from .routing import cal_shortest_path
+from .env import env
 
 #from .packet_gen import
 

@@ -1,5 +1,5 @@
 '''
-the simulator to simulate the VNF scheduling and packet processing
+A simulator to simulate the VNF scheduling and packet processing
 
 how to write a simulator?
 
@@ -23,7 +23,7 @@ m4.2xlarge
 @packet flow?
 randomly selected (start, end) pairs from the network topology.
 each flow associates with 1-4 VNFs.
-wikipedia trace
+Wikipedia trace
 Arrival Process distribution
 
 
@@ -47,19 +47,27 @@ Erd ̋os-Rényi model [48]to generate the graphs of VNF-FGs
 
 '''
 
-import simpy
-
-from core.topology import Topology
-from core.server import Server
-from core.service_chain import ServiceChain
-from core.packet import Packet
-from core.routing import *
+import random
 
 from algo import best_fit
 
+from core.env import env
+from core.forwarding import forward_packet
+from core.packet import Packet
+from core.routing import *
+from core.server import Server
+from core.service_chain import ServiceChain
+from core.topology import Topology
+
+
+def flow_generator(packet_pool, servers, links):
+    while True:
+        yield env.timeout(1)
+        packet = random.choice(packet_pool)
+        #env.process(forward_packet(packet, servers, links))
+        forward_packet(packet, servers, links)
 
 def main():
-
     # step1: create network topology
     t = Topology()
     t.load_network_graph(path='./topology/topology.txt')
@@ -70,28 +78,26 @@ def main():
     servers = Server.init_servers(t.get_nodes())
 
     # step3: create service chains
-    chains = [ServiceChain.random_gen() for _ in range(4)]
+    service_chains = [ServiceChain.random_gen() for _ in range(4)]
 
     # step4: place service chains
-    best_fit(servers, chains)
+    for chain in service_chains:
+        best_fit(servers, chain)
 
     # for s in servers.values():
     #     s.print_avail_resources()
 
-    # step5: generate the packet pool
-    packet_pool = Packet.gen_packet_pool(list(servers.keys()), chains, paths)
-
+    # step5: generate a packet pool
+    packet_pool = Packet.gen_packet_pool(list(servers.keys()), paths, service_chains)
 
     # step5.5 create a packet from the packet pool
-    env = simpy.Environment()
-
-    pipe = simpy.Store(env)
-
-    env.process(Packet.gen_packet(env, packet_pool, pipe))
-
-    env.run(10)
-
     # step6: simulate routing process.
+
+    env.process(flow_generator(packet_pool, servers, t.links))
+
+    TOTAL_SIM_TIME = 1000
+    env.run(TOTAL_SIM_TIME)
+
     # processing delay + server queuing delay +
     # link queuing delay + link transmission delay + link propagation delay
 

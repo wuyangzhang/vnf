@@ -8,6 +8,7 @@ class ServiceChain:
     def __init__(self, id, vnfs):
         self.id = id
         self.vnfs = vnfs
+        self.placement = []
 
     def next_VNF(self, vnf: VirtualNetworkFunction):
         '''

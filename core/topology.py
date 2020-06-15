@@ -10,8 +10,8 @@ class Topology:
     def __init__(self):
         self.graph = collections.defaultdict(set)
         self.topology = collections.defaultdict(list)
-        self.nodes = dict()
-        self.links = dict()
+        self.nodes = dict() # key: node_id, value: node
+        self.links = dict() # key: (from, to), value: link
 
     def load_network_graph(self, path):
         '''

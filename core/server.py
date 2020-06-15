@@ -1,5 +1,9 @@
 import random
+
+import simpy
+
 from core.virtualNetworkFunction import VirtualNetworkFunction
+from core.env import env
 
 types = {'m4.large': (2, 8),
          'm4.xlarge': (4, 16),
@@ -7,6 +11,7 @@ types = {'m4.large': (2, 8),
          'm4.4xlarge': (16, 64),
          'm4.10xlarge': (40, 160)}
 
+random.seed(4)
 
 class Server:
     def __init__(self, addr, type):
@@ -17,6 +22,32 @@ class Server:
         self.avail_cpus = self.cpus
         self.avail_mem = self.mem
         self.attached_vnfs = list()
+
+        self.store = simpy.Store(env)
+        self.env = env
+        self.proc_delay = 1
+
+    def get_bw(self):
+        return self.bandwidth
+
+    def set_bw(self, val):
+        self.bandwidth = val
+
+    def proc_packet(self, packet):
+        yield self.env.timeout(self.proc_delay)
+        self.store.put(packet)
+
+    def put(self, packet):
+        self.env.process(self.proc_packet(packet))
+
+    def get(self):
+        return self.store.get()
+
+    def get_processed_packet(self):
+        while True:
+            # Get event for message pipe
+            packet = yield self.get()
+            return packet
 
     def print_avail_resources(self):
         print('server {}: available CPU {}, available mem {}'.format(self.addr, self.avail_cpus, self.avail_mem))
@@ -78,7 +109,3 @@ class Server:
             server = Server.create_random_server(node.id)
             servers[node.id] = server
         return servers
-
-
-
-
