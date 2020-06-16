@@ -24,7 +24,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
 '''
 
-
 import numpy as np
 import random
 
@@ -32,21 +31,29 @@ from .routing import find_shortest_path
 
 # import simpy
 
+import uuid
+
 random.seed(4)
 
 
 class Packet:
     def __init__(self, size, src, dest):
+        self.id = uuid.uuid4()
         self.size = size  # Byte
         self.src_addr = src
         self.dest_addr = dest
         self.service_chain = None
         self.routing_path = []
         self.vnf_server_addr = []
-        self.cur_addr = -1
-        self.cur_addr_index = -1
+        #self.cur_addr = -1
+        self.cur_addr_index = 0
         self.next_hop_addr = -1
         self.next_server_addr = -1
+        self.last_processed_vnf_index = -1
+
+    def get_next_required_vnf(self):
+        if self.last_processed_vnf_index < len(self.service_chain.get_VNFs()) - 1:
+            return self.service_chain.get_VNFs()[self.last_processed_vnf_index + 1]
 
     def forward(self):
         self.cur_addr_index += 1
@@ -55,7 +62,12 @@ class Packet:
         return self.dest_addr == self.get_cur_addr()
 
     def is_vnf_server(self):
-        return self.get_cur_addr() in self.vnf_server_addr
+        if self.last_processed_vnf_index + 1 >= len(self.vnf_server_addr):
+            return False
+        return self.get_cur_addr() == self.vnf_server_addr[self.last_processed_vnf_index+1]
+
+    def finish_process(self):
+        self.last_processed_vnf_index += 1
 
     def get_cur_addr(self):
         if self.cur_addr_index < len(self.routing_path):
@@ -63,7 +75,7 @@ class Packet:
 
     def get_next_hop_addr(self):
         if self.cur_addr_index < len(self.routing_path) - 1:
-            return self.routing_path[self.cur_addr_index+1]
+            return self.routing_path[self.cur_addr_index + 1]
 
     def get_next_server_addr(self):
         pass
@@ -95,6 +107,8 @@ class Packet:
 
             # randomly select source and destination address
             src, dest = random.choice(server_addrs), random.choice(server_addrs)
+            # if src == dest:
+            #     continue
             p = Packet(size, src, dest)
             p.cur_addr = src
 
@@ -113,7 +127,7 @@ class Packet:
 
             # post-processing of the routing path
             # flatten the routing path
-            for i in range(len(path)-1):
+            for i in range(len(path) - 1):
                 p.routing_path += path[i][:-1]
             p.routing_path += path[-1]
 

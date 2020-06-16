@@ -24,18 +24,32 @@
  * POSSIBILITY OF SUCH DAMAGE.
 '''
 
+import collections
+
 import simpy
 
 from core.env import env
+
 
 class Link:
     def __init__(self, from_node, to_node, bw, latency):
         self.from_node = from_node
         self.to_node = to_node
         self.bandwidth = bw # Mbps
-        self.latency = latency
+        self.latency = latency # propagation latency
         self.store = simpy.Store(env)
         self.env = env
+        self.queue = simpy.Resource(env, 1)
+
+    def request_forward(self, packet):
+        with self.queue.request() as req:
+            # request one processor
+            yield req
+            # processing the packet
+            forward_time = packet.get_size() / self.bandwidth + self.latency
+
+            yield env.timeout(forward_time)
+
 
     def get_bw(self):
         return self.bandwidth
@@ -43,17 +57,17 @@ class Link:
     def set_bw(self, val):
         self.bandwidth = val
 
-    def latency(self, packet):
-        yield self.env.timeout(self.latency)
-        self.store.put(packet)
-
-    def put(self, packet):
-        self.env.process(self.latency(packet))
-
-    def get(self):
-        return self.store.get()
-
-    def get_forwarded_packet(self):
-        while True:
-            packet = yield self.get()
-            return packet
+    # def latency(self, packet):
+    #     yield self.env.timeout(self.latency)
+    #     self.store.put(packet)
+    #
+    # def put(self, packet):
+    #     self.env.process(self.latency(packet))
+    #
+    # def get(self):
+    #     return self.store.get()
+    #
+    # def get_forwarded_packet(self):
+    #     while True:
+    #         packet = yield self.get()
+    #         return packet

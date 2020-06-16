@@ -70,7 +70,7 @@ def dijkstra(graph, link, source):
         nodes.remove(target)
 
         for nei in graph[target]:
-            alt = dist[target] + link[target, nei].latency
+            alt = dist[target] + link[target.id, nei.id].latency
             if dist[nei] > alt:
                 dist[nei] = alt
                 prev[nei.id] = target.id
@@ -88,7 +88,7 @@ def find_shortest_path(paths, source, destination):
     '''
     path = [destination]
     cur = destination
-    while cur and cur != source:
+    while cur != source:
         cur = paths[source][cur]
         path.insert(0, cur)
     return path

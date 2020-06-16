@@ -62,7 +62,6 @@ class Topology:
         Create the nodes and the links based on the underlying network graph
         :return: the created network topology
         '''
-
         # create nodes
         for n in self.graph:
             self.nodes[n] = Node(n)
@@ -75,7 +74,7 @@ class Topology:
 
                 # todo: to find a model to specify link bandwidth and latency
                 latency = np.random.poisson(40, 1)[0]
-                self.links[a, b] = Link(a, b, 100, latency)
+                self.links[a.id, b.id] = Link(a, b, 100, latency)
 
         return self.topology
 

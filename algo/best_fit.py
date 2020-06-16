@@ -37,6 +37,8 @@ def best_fit(servers: List[Server], chain):
     :return:
     '''
 
+    print('\nStart to place service chain {}'.format(chain.id))
+
     for v in chain.get_VNFs():
         # sorted servers and find the one with the most available resources
         # use the available CPU num and the available memory as the sorting metrics
@@ -54,5 +56,5 @@ def best_fit(servers: List[Server], chain):
             break
         else:
             chain.placement.append(selected_server.addr)
-        print('Place vnf {} v to the server {}'.format(v.id, selected_server.addr))
+        print('Place vnf {} {} to the server {}'.format(v.id, v.name, selected_server.addr))
     return chain

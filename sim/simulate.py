@@ -76,7 +76,6 @@ Erd ̋os-Rényi model [48]to generate the graphs of VNF-FGs
 import random
 
 from algo import best_fit
-
 from core.env import env
 from core.forwarding import forward_packet
 from core.packet import Packet
@@ -94,11 +93,14 @@ def flow_generator(packet_pool, servers, links):
     :param links:
     :return: None
     '''
-    # todo: consider to find a Poisson distribution for the packet generation
+    # todo: consider to find a Poisson distribution for the packet generation or to use the wiki traffic trace.
     while True:
         yield env.timeout(1)
         packet = random.choice(packet_pool)
+        print('generate a packet at {}'.format(env.now))
         forward_packet(packet, servers, links)
+
+
 
 def main():
     '''
@@ -107,7 +109,7 @@ def main():
     '''
 
     TOTAL_SERVICE_CHAIN_NUM = 4
-    TOTAL_SIM_TIME = 1000
+    TOTAL_SIM_TIME = 20
 
     # step1: create network topology
     t = Topology()
@@ -122,23 +124,30 @@ def main():
     # step3: create service chains
     service_chains = [ServiceChain.random_gen() for _ in range(TOTAL_SERVICE_CHAIN_NUM)]
 
-    # step4: place service chains
+    # step4: place service chains. single instance ... multiple instance ...
     for chain in service_chains:
         best_fit(servers, chain)
+
+    # dynamically launch VNF processes
+    for server in servers.values():
+        server.create_vnf_processes()
 
     # step5: generate a packet pool
     packet_pool = Packet.gen_packet_pool(list(servers.keys()), paths, service_chains)
 
     # step5.5 create a packet from the packet pool and  simulate routing process.
-    env.process(flow_generator(packet_pool, servers, t.links))
+    #env.process(flow_generator(packet_pool, servers, t.links))
+    
+    packet = random.choice(packet_pool)
+    forward_packet(packet, servers, t.links)
 
     env.run(TOTAL_SIM_TIME)
-
     # processing delay + server queuing delay +
     # link queuing delay + link transmission delay + link propagation delay
 
     # step7: calculate the performance metrics
     # think about the desired metrics and how to calculate them?
+
 
 if __name__ == '__main__':
     main()

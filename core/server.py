@@ -39,6 +39,7 @@ types = {'m4.large': (2, 8),
 
 random.seed(4)
 
+
 class Server:
     def __init__(self, addr, type):
         self.addr = addr
@@ -49,31 +50,48 @@ class Server:
         self.avail_mem = self.mem
         self.attached_vnfs = list()
 
-        self.store = simpy.Store(env)
+        #self.store = simpy.Store(env)
         self.env = env
         self.proc_delay = 1
 
-    def get_bw(self):
-        return self.bandwidth
+        self.processes = dict()
 
-    def set_bw(self, val):
-        self.bandwidth = val
+    def create_vnf_processes(self):
+        '''
+        Create a process for each assigned VNF
+        :return: processes dict
+        '''
+        for v in self.attached_vnfs:
+            self.processes[v.id] = simpy.Resource(env, 1)
 
-    def proc_packet(self, packet):
-        yield self.env.timeout(self.proc_delay)
-        self.store.put(packet)
+    def request_process(self, packet):
+        request_vnf = packet.get_next_required_vnf()
+        print('vnf', request_vnf)
+        with self.processes[request_vnf.id].request() as req:
+            # request one processor
+            yield req
+            # processing the packet
+            print('process packet {} at {}'.format(packet.id, env.now))
+            # todo: find the processing time for each VNF
+            yield env.timeout(1.0)
+            packet.finish_process()
+            #return packet
 
-    def put(self, packet):
-        self.env.process(self.proc_packet(packet))
-
-    def get(self):
-        return self.store.get()
-
-    def get_processed_packet(self):
-        while True:
-            # Get event for message pipe
-            packet = yield self.get()
-            return packet
+    # def proc_packet(self, packet):
+    #     yield self.env.timeout(self.proc_delay)
+    #     self.store.put(packet)
+    #
+    # def put(self, packet):
+    #     self.env.process(self.proc_packet(packet))
+    #
+    # def get(self):
+    #     return self.store.get()
+    #
+    # def get_processed_packet(self):
+    #     while True:
+    #         # Get event for message pipe
+    #         packet = yield self.get()
+    #         return packet
 
     def print_avail_resources(self):
         print('server {}: available CPU {}, available mem {}'.format(self.addr, self.avail_cpus, self.avail_mem))
@@ -134,4 +152,5 @@ class Server:
         for node in nodes:
             server = Server.create_random_server(node.id)
             servers[node.id] = server
+
         return servers

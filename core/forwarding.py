@@ -27,6 +27,7 @@
 
 from core.env import env
 
+
 def forward_packet(packet, servers, links):
     '''
     recursively call forward_packet until the packet arrives at the destination
@@ -39,27 +40,24 @@ def forward_packet(packet, servers, links):
     server_addr = packet.get_cur_addr()
     cur_server = servers[server_addr]
 
+    # VNF processing
+    if packet.is_vnf_server():
+        env.process(cur_server.request_process(packet))
+
+
+    # terminated condition
     if packet.is_dest_addr():
-        if packet.is_vnf_server():
-            cur_server.put(packet)
-            cur_server.get_processed_packet()
         return
 
-    if packet.is_vnf_server():
-        cur_server.put(packet)
-        cur_server.get_processed_packet()
-
-    next_hop = packet.get_next_hop_addr()
+    # forward to the next hop
     cur_addr = packet.get_cur_addr()
+    next_hop_addr = packet.get_next_hop_addr()
 
-    # get the link and forward.
-    link = links(cur_addr, next_hop)
-    link.put(packet)
+    # get the link and forward
+    link = links[(cur_addr, next_hop_addr)]
+    env.process(link.request_forward(packet))
 
-    # forward to the next server.
-    packet = link.get_forwarded_packet()
-
-    # update packet address
+    # update the packet's current address
     packet.forward()
 
-    return forward_packet(packet, servers, links)
+    forward_packet(packet, servers, links)

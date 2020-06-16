@@ -1,8 +1,11 @@
 import random
 
+import uuid
+
 class VirtualNetworkFunction:
-    def __init__(self, id, cpu, mem, thr):
-        self.id = id
+    def __init__(self, name, cpu, mem, thr):
+        self.id = uuid.uuid4()
+        self.name = name
 
         self.CPU = cpu # count
         self.memory = mem  # GB
@@ -10,7 +13,7 @@ class VirtualNetworkFunction:
         self.attached_server = None
 
     def __str__(self):
-        return 'id: {}, requested CPU num: {}, requested memory: {} GB, throughput: {} Mbps'.format(self.id, self.CPU, self.memory, self.throughput)
+        return 'id: {}, requested CPU num: {}, requested memory: {} GB, throughput: {} Mbps'.format(self.name, self.CPU, self.memory, self.throughput)
 
     def attach_server(self, server):
         self.attached_server = server
