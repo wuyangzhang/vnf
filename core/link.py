@@ -36,21 +36,20 @@ class Link:
         self.from_node = from_node
         self.to_node = to_node
         self.bandwidth = bw # Mbps
-        self.latency = latency # propagation latency
-        self.queue = simpy.Store(env)
+        self.propagation_latency = latency # ms propagation latency
+        #self.queue = simpy.Store(env)
         self.env = env
         self.queue = simpy.Resource(env, 1)
 
     def request_forward(self, packet):
         with self.queue.request() as req:
-            # request one processor
             yield req
-            # processing the packet
-            forward_time = packet.get_size() / self.bandwidth + self.latency
-
+            # forwarding the packet. KB / MB +
+            forward_time = packet.get_size() / self.bandwidth / 1000 + self.propagation_latency
+            #print(forward_time)
             yield env.timeout(forward_time)
             print('link from {} to {} forwards the packet {} at time {}'.format(self.from_node.id, self.to_node.id, packet.id, env.now))
-            # update the packet's current address
+
             packet.forward()
 
     def get_bw(self):
@@ -62,17 +61,12 @@ class Link:
     def __str__(self):
         return 'link from {} to {}'.format(self.from_node.id, self.to_node.id)
 
+    # def put(self, packet):
+    #     self.env.process(self.propagation_latency(packet))
+    #
+    # def get(self):
+    #     return self.queue.get()
+
     # def latency(self, packet):
     #     yield self.env.timeout(self.latency)
     #     self.store.put(packet)
-    #
-    def put(self, packet):
-        self.env.process(self.latency(packet))
-
-    def get(self):
-        return self.queue.get()
-    #
-    # def get_forwarded_packet(self):
-    #     while True:
-    #         packet = yield self.get()
-    #         return packet

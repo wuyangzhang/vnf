@@ -70,7 +70,7 @@ def dijkstra(graph, link, source):
         nodes.remove(target)
 
         for nei in graph[target]:
-            alt = dist[target] + link[target.id, nei.id].latency
+            alt = dist[target] + link[target.id, nei.id].propagation_latency
             if dist[nei] > alt:
                 dist[nei] = alt
                 prev[nei.id] = target.id

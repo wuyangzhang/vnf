@@ -55,6 +55,7 @@ def best_fit(servers: List[Server], chain):
             chain.placement = []
             break
         else:
+            v.attached_server = selected_server.addr
             chain.placement.append(selected_server.addr)
         print('Place vnf {} {} to the server {}'.format(v.id, v.name, selected_server.addr))
     return chain

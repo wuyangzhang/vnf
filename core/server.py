@@ -25,11 +25,10 @@
 '''
 
 import random
-
 import simpy
 
-from core.virtualNetworkFunction import VirtualNetworkFunction
 from core.env import env
+from core.virtualNetworkFunction import VirtualNetworkFunction
 
 types = {'m4.large': (2, 8),
          'm4.xlarge': (4, 16),
@@ -38,6 +37,13 @@ types = {'m4.large': (2, 8),
          'm4.10xlarge': (40, 160)}
 
 random.seed(4)
+
+
+class Process:
+    def __init__(self, vnf, proc_time=1):
+        self.vnf = vnf
+        self.thread = simpy.Resource(env, 1)
+        self.proc_time = proc_time
 
 
 class Server:
@@ -52,9 +58,10 @@ class Server:
 
         self.queue = simpy.Store(env)
         self.env = env
-        self.proc_delay = 1
 
+        # each process handles an individual VNF
         self.processes = dict()
+
         self.links = None
 
     def create_vnf_processes(self):
@@ -63,65 +70,56 @@ class Server:
         :return: processes dict
         '''
         for v in self.attached_vnfs:
-            self.processes[v.id] = simpy.Resource(env, 1)
+            self.processes[v.id] = Process(v)
 
     def recv_packet(self, packet):
         self.queue.put(packet)
 
-    def proc_packet(self):
-        while True:
-            packet = yield self.queue.get()
+    def run(self):
+        self.create_vnf_processes()
+        env.process(self.launch_process())
 
+    def launch_process(self):
+        while True:
+            # keep pull out packets from the queue
+            packet = yield self.queue.get()
             if packet.is_vnf_server():
-                request_vnf = packet.get_next_required_vnf()
-                with self.processes[request_vnf.id].request() as req:
+                vnf_id = packet.get_next_required_vnf().id
+                p = self.processes[vnf_id]
+                with p.thread.request() as req:
                     # request one processor
                     yield req
-                    # processing the packet
                     print('server {} process packet {} at {}'.format(self.addr, packet.id, env.now))
                     # todo: find the processing time for each VNF
-                    yield env.timeout(1.0)
+                    yield env.timeout(p.proc_time)
                     packet.finish_process()
 
+            # finish the processing of the packet.
             if packet.is_dest_addr():
-                return
+                continue
+
+            # the next VNF locates on the same server.
+            if packet.get_next_required_vnf() in self.attached_vnfs:
+                self.recv_packet(packet)
+                continue
 
             # forward to the next hop
             cur_addr = packet.get_cur_addr()
             next_hop_addr = packet.get_next_hop_addr()
-
-            # get the link and forward
             link = self.links[(cur_addr, next_hop_addr)]
 
             env.process(link.request_forward(packet))
 
-    def request_process(self, packet):
-        request_vnf = packet.get_next_required_vnf()
-        with self.processes[request_vnf.id].request() as req:
-            # request one processor
-            yield req
-            # processing the packet
-            print('server {} process packet {} at {}'.format(self.addr, packet.id, env.now))
-            # todo: find the processing time for each VNF
-            yield env.timeout(1.0)
-            packet.finish_process()
-            #return packet
-
-    # def proc_packet(self, packet):
-    #     yield self.env.timeout(self.proc_delay)
-    #     self.store.put(packet)
-    #
-    # def put(self, packet):
-    #     self.env.process(self.proc_packet(packet))
-    #
-    # def get(self):
-    #     return self.store.get()
-    #
-    # def get_processed_packet(self):
-    #     while True:
-    #         # Get event for message pipe
-    #         packet = yield self.get()
-    #         return packet
+    # def request_process(self, packet):
+    #     request_vnf = packet.get_next_required_vnf()
+    #     with self.processes[request_vnf.id].request() as req:
+    #         # request one processor
+    #         yield req
+    #         # processing the packet
+    #         print('server {} process packet {} at {}'.format(self.addr, packet.id, env.now))
+    #         # todo: find the processing time for each VNF
+    #         yield env.timeout(1.0)
+    #         packet.finish_process()
 
     def print_avail_resources(self):
         print('server {}: available CPU {}, available mem {}'.format(self.addr, self.avail_cpus, self.avail_mem))

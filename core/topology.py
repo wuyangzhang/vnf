@@ -25,8 +25,7 @@
 '''
 
 import collections
-
-import numpy as np
+import random
 
 from .node import Node
 from .link import Link
@@ -73,8 +72,8 @@ class Topology:
                 self.topology[a].append(b)
 
                 # todo: to find a model to specify link bandwidth and latency
-                latency = np.random.poisson(40, 1)[0]
-                self.links[a.id, b.id] = Link(a, b, 100, latency)
+                propagation_latency = abs(random.gauss(2, 1))
+                self.links[a.id, b.id] = Link(a, b, 100, propagation_latency)
 
         return self.topology
 

@@ -77,13 +77,11 @@ import random
 
 from algo import best_fit
 from core.env import env
-from core.forwarding import forward_packet
 from core.packet import Packet
 from core.routing import *
 from core.server import Server
 from core.service_chain import ServiceChain
 from core.topology import Topology
-from core.sdn import SDN
 
 
 def flow_generator(packet_pool):
@@ -98,8 +96,8 @@ def flow_generator(packet_pool):
     while True:
         yield env.timeout(1)
         packet = random.choice(packet_pool)
+        packet.create_time = env.now
         packet.forward()
-
 
 
 def main():
@@ -132,21 +130,23 @@ def main():
 
     # dynamically launch VNF processes
     for server in servers.values():
-        server.create_vnf_processes()
-        env.process(server.proc_packet())
+        #env.process(server.proc_packet())
+        server.run()
 
     # step5: generate a packet pool
     packet_pool = Packet.gen_packet_pool(servers, paths, service_chains)
 
-    # step5.5 create a packet from the packet pool and  simulate routing process.
+    # step6 create a packet from the packet pool and  simulate routing process.
     #env.process(flow_generator(packet_pool, servers, t.links))
 
-    packet = random.choice(packet_pool)
-    print(packet.routing_path)
-    print(packet.vnf_server_addr)
+    # single packet test
 
-    #forward_packet(packet, servers, t.links)
-    #packet.forward()
+    # packet = random.choice(packet_pool)
+    # print(packet.routing_path)
+    # print(packet.vnf_server_addr)
+    # packet.forward()
+
+    # generating traffic flow
     env.process(flow_generator(packet_pool))
 
     env.run(TOTAL_SIM_TIME)

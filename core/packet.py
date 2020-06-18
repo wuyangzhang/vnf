@@ -24,14 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
 '''
 
-import numpy as np
 import random
+import uuid
 
 from .routing import find_shortest_path
-
-# import simpy
-
-import uuid
 
 random.seed(4)
 
@@ -42,48 +38,55 @@ class Packet:
         self.size = size  # Byte
         self.src_addr = src
         self.dest_addr = dest
+
+        self.create_time = None
+
         self.service_chain = None
         self.routing_path = []
         self.vnf_server_addr = []
-        #self.cur_addr = -1
+        # self.cur_addr = -1
         self.cur_addr_index = -1
         self.next_hop_addr = -1
         self.next_server_addr = -1
         self.last_processed_vnf_index = -1
         self.servers = servers
 
-    def get_next_required_vnf(self):
-        if self.last_processed_vnf_index < len(self.service_chain.get_VNFs()) - 1:
-            return self.service_chain.get_VNFs()[self.last_processed_vnf_index + 1]
-
     def forward(self):
         self.cur_addr_index += 1
+
         cur_addr = self.get_cur_addr()
         cur_server = self.servers[cur_addr]
         cur_server.recv_packet(self)
 
-
     def is_dest_addr(self):
-        return self.dest_addr == self.get_cur_addr()
-
-    def is_vnf_server(self):
-        if self.last_processed_vnf_index + 1 >= len(self.vnf_server_addr):
-            return False
-        return self.get_cur_addr() == self.vnf_server_addr[self.last_processed_vnf_index+1]
-
-    def finish_process(self):
-        self.last_processed_vnf_index += 1
+        return self.cur_addr_index == len(self.routing_path) - 1
 
     def get_cur_addr(self):
+        # print(self.cur_addr_index, len(self.routing_path))
         if self.cur_addr_index < len(self.routing_path):
             return self.routing_path[self.cur_addr_index]
+
+    def get_next_vnf_server_addr(self):
+        if self.last_processed_vnf_index < len(self.service_chain.get_VNFs()) - 1:
+            return self.vnf_server_addr[self.last_processed_vnf_index + 1]
 
     def get_next_hop_addr(self):
         if self.cur_addr_index < len(self.routing_path) - 1:
             return self.routing_path[self.cur_addr_index + 1]
 
-    def get_next_server_addr(self):
-        pass
+    def is_vnf_server(self):
+        return self.last_processed_vnf_index + 1 < len(self.vnf_server_addr) and self.get_cur_addr() == \
+               self.vnf_server_addr[self.last_processed_vnf_index + 1]
+
+    def get_cur_vnf(self):
+        return self.service_chain.get_VNFs[self.last_processed_vnf_index]
+
+    def get_next_required_vnf(self):
+        if self.last_processed_vnf_index < len(self.service_chain.get_VNFs()) - 1:
+            return self.service_chain.get_VNFs()[self.last_processed_vnf_index + 1]
+
+    def finish_process(self):
+        self.last_processed_vnf_index += 1
 
     def get_size(self):
         return self.size
@@ -109,7 +112,7 @@ class Packet:
         cnt = 1000
         server_addrs = list(servers.keys())
         for _ in range(cnt):
-            size = np.random.poisson(1024, cnt)[0]
+            size = random.gauss(1024, 400)
 
             # randomly select source and destination address
             src, dest = random.choice(server_addrs), random.choice(server_addrs)
