@@ -83,9 +83,10 @@ from core.routing import *
 from core.server import Server
 from core.service_chain import ServiceChain
 from core.topology import Topology
+from core.sdn import SDN
 
 
-def flow_generator(packet_pool, servers, links):
+def flow_generator(packet_pool):
     '''
     randomly generate a packet from the packet pool, and make it go through the placed service chain.
     :param packet_pool:
@@ -97,8 +98,7 @@ def flow_generator(packet_pool, servers, links):
     while True:
         yield env.timeout(1)
         packet = random.choice(packet_pool)
-        print('generate a packet at {}'.format(env.now))
-        forward_packet(packet, servers, links)
+        packet.forward()
 
 
 
@@ -109,7 +109,8 @@ def main():
     '''
 
     TOTAL_SERVICE_CHAIN_NUM = 4
-    TOTAL_SIM_TIME = 20
+    TOTAL_SIM_TIME = 1000
+    random.seed(4)
 
     # step1: create network topology
     t = Topology()
@@ -119,7 +120,8 @@ def main():
     paths = cal_shortest_path(t.topology, t.links)
 
     # step2: initialize servers
-    servers = Server.init_servers(t.get_nodes())
+    servers = Server.init_servers(t.get_nodes(), t.get_links())
+
 
     # step3: create service chains
     service_chains = [ServiceChain.random_gen() for _ in range(TOTAL_SERVICE_CHAIN_NUM)]
@@ -131,15 +133,21 @@ def main():
     # dynamically launch VNF processes
     for server in servers.values():
         server.create_vnf_processes()
+        env.process(server.proc_packet())
 
     # step5: generate a packet pool
-    packet_pool = Packet.gen_packet_pool(list(servers.keys()), paths, service_chains)
+    packet_pool = Packet.gen_packet_pool(servers, paths, service_chains)
 
     # step5.5 create a packet from the packet pool and  simulate routing process.
     #env.process(flow_generator(packet_pool, servers, t.links))
-    
+
     packet = random.choice(packet_pool)
-    forward_packet(packet, servers, t.links)
+    print(packet.routing_path)
+    print(packet.vnf_server_addr)
+
+    #forward_packet(packet, servers, t.links)
+    #packet.forward()
+    env.process(flow_generator(packet_pool))
 
     env.run(TOTAL_SIM_TIME)
     # processing delay + server queuing delay +

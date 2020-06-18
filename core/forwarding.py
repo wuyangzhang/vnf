@@ -37,27 +37,25 @@ def forward_packet(packet, servers, links):
     :return:
     '''
 
-    server_addr = packet.get_cur_addr()
-    cur_server = servers[server_addr]
-
-    # VNF processing
-    if packet.is_vnf_server():
-        env.process(cur_server.request_process(packet))
-
-
-    # terminated condition
-    if packet.is_dest_addr():
-        return
-
-    # forward to the next hop
     cur_addr = packet.get_cur_addr()
-    next_hop_addr = packet.get_next_hop_addr()
+    cur_server = servers[cur_addr]
 
-    # get the link and forward
-    link = links[(cur_addr, next_hop_addr)]
-    env.process(link.request_forward(packet))
 
-    # update the packet's current address
-    packet.forward()
+    # # VNF processing
+    # # process is an event. yield will notify when to execute the process.
+    # if packet.is_vnf_server():
+    #     env.process(cur_server.request_process(packet, links))
+    #
+    # # terminated condition
+    # if packet.is_dest_addr():
+    #     return
+    #
+    # # forward to the next hop
+    # next_hop_addr = packet.get_next_hop_addr()
+    #
+    # # get the link and forward
+    # link = links[(cur_addr, next_hop_addr)]
+    #
+    # env.process(link.request_forward(packet))
 
-    forward_packet(packet, servers, links)
+    #forward_packet(packet, servers, links)

@@ -37,7 +37,7 @@ random.seed(4)
 
 
 class Packet:
-    def __init__(self, size, src, dest):
+    def __init__(self, size, src, dest, servers):
         self.id = uuid.uuid4()
         self.size = size  # Byte
         self.src_addr = src
@@ -46,10 +46,11 @@ class Packet:
         self.routing_path = []
         self.vnf_server_addr = []
         #self.cur_addr = -1
-        self.cur_addr_index = 0
+        self.cur_addr_index = -1
         self.next_hop_addr = -1
         self.next_server_addr = -1
         self.last_processed_vnf_index = -1
+        self.servers = servers
 
     def get_next_required_vnf(self):
         if self.last_processed_vnf_index < len(self.service_chain.get_VNFs()) - 1:
@@ -57,6 +58,10 @@ class Packet:
 
     def forward(self):
         self.cur_addr_index += 1
+        cur_addr = self.get_cur_addr()
+        cur_server = self.servers[cur_addr]
+        cur_server.recv_packet(self)
+
 
     def is_dest_addr(self):
         return self.dest_addr == self.get_cur_addr()
@@ -90,7 +95,7 @@ class Packet:
         return self.dest_addr
 
     @staticmethod
-    def gen_packet_pool(server_addrs, paths, chains):
+    def gen_packet_pool(servers, paths, chains):
         '''
         Randomly generate a packet by specifying its
         1. source/destination addresses,
@@ -102,6 +107,7 @@ class Packet:
         '''
         packets = []
         cnt = 1000
+        server_addrs = list(servers.keys())
         for _ in range(cnt):
             size = np.random.poisson(1024, cnt)[0]
 
@@ -109,7 +115,7 @@ class Packet:
             src, dest = random.choice(server_addrs), random.choice(server_addrs)
             # if src == dest:
             #     continue
-            p = Packet(size, src, dest)
+            p = Packet(size, src, dest, servers)
             p.cur_addr = src
 
             # randomly associate the packet to a service chain and

@@ -78,6 +78,9 @@ class Topology:
 
         return self.topology
 
+    def get_links(self):
+        return self.links
+
     def get_nodes(self):
         '''
         To get the vertex in the graph.

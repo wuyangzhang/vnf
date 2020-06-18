@@ -50,11 +50,12 @@ class Server:
         self.avail_mem = self.mem
         self.attached_vnfs = list()
 
-        #self.store = simpy.Store(env)
+        self.queue = simpy.Store(env)
         self.env = env
         self.proc_delay = 1
 
         self.processes = dict()
+        self.links = None
 
     def create_vnf_processes(self):
         '''
@@ -64,14 +65,43 @@ class Server:
         for v in self.attached_vnfs:
             self.processes[v.id] = simpy.Resource(env, 1)
 
+    def recv_packet(self, packet):
+        self.queue.put(packet)
+
+    def proc_packet(self):
+        while True:
+            packet = yield self.queue.get()
+
+            if packet.is_vnf_server():
+                request_vnf = packet.get_next_required_vnf()
+                with self.processes[request_vnf.id].request() as req:
+                    # request one processor
+                    yield req
+                    # processing the packet
+                    print('server {} process packet {} at {}'.format(self.addr, packet.id, env.now))
+                    # todo: find the processing time for each VNF
+                    yield env.timeout(1.0)
+                    packet.finish_process()
+
+            if packet.is_dest_addr():
+                return
+
+            # forward to the next hop
+            cur_addr = packet.get_cur_addr()
+            next_hop_addr = packet.get_next_hop_addr()
+
+            # get the link and forward
+            link = self.links[(cur_addr, next_hop_addr)]
+
+            env.process(link.request_forward(packet))
+
     def request_process(self, packet):
         request_vnf = packet.get_next_required_vnf()
-        print('vnf', request_vnf)
         with self.processes[request_vnf.id].request() as req:
             # request one processor
             yield req
             # processing the packet
-            print('process packet {} at {}'.format(packet.id, env.now))
+            print('server {} process packet {} at {}'.format(self.addr, packet.id, env.now))
             # todo: find the processing time for each VNF
             yield env.timeout(1.0)
             packet.finish_process()
@@ -95,9 +125,6 @@ class Server:
 
     def print_avail_resources(self):
         print('server {}: available CPU {}, available mem {}'.format(self.addr, self.avail_cpus, self.avail_mem))
-
-    def receive_packet(self):
-        pass
 
     def attach_vnf(self, vnf: VirtualNetworkFunction):
         '''
@@ -142,7 +169,7 @@ class Server:
         return Server(addr, 'm4.10xlarge')
 
     @staticmethod
-    def init_servers(nodes):
+    def init_servers(nodes, links):
         '''
         Get all the node from the topology and assign a server to it...
         :param nodes:
@@ -151,6 +178,7 @@ class Server:
         servers = {}
         for node in nodes:
             server = Server.create_random_server(node.id)
+            server.links = links
             servers[node.id] = server
 
         return servers
