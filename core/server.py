@@ -42,7 +42,7 @@ random.seed(4)
 
 
 class Process:
-    def __init__(self, vnf, server, proc_time=1):
+    def __init__(self, vnf, server, proc_time=0.05):
         self.vnf = vnf
         self.thread = simpy.Resource(env, 1)
         self.buffer = simpy.Store(env)

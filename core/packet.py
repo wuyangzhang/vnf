@@ -27,8 +27,8 @@
 import random
 import uuid
 
-from .routing import find_shortest_path
 from core.env import env
+from .routing import find_shortest_path
 
 random.seed(4)
 
@@ -69,53 +69,43 @@ class Packet:
         self.servers = packet.servers
         return self
 
-    def forward(self):
+    def forward(self, t=1):
+        yield env.timeout(0.5)
         next_hop_addr = self.get_next_hop_addr()
         next_server = self.servers[next_hop_addr]
         next_server.recv_packet(self)
 
-
     def update_cur_addr(self):
         self.cur_addr_index += 1
-
 
     def is_dest_addr(self):
         return self.cur_addr_index == len(self.routing_path) - 1
 
-
     def get_cur_addr(self):
-        # print(self.cur_addr_index, len(self.routing_path))
         if self.cur_addr_index < len(self.routing_path):
             return self.routing_path[self.cur_addr_index]
-
 
     def get_next_hop_addr(self):
         if self.cur_addr_index + 1 < len(self.routing_path):
             return self.routing_path[self.cur_addr_index + 1]
 
-
     def get_next_vnf_server_addr(self):
         if self.last_processed_vnf_index < len(self.service_chain.get_VNFs()) - 1:
             return self.vnf_server_addr[self.last_processed_vnf_index + 1]
-
 
     def need_vnf_proc(self):
         return self.last_processed_vnf_index + 1 < len(self.vnf_server_addr) and self.get_cur_addr() == \
                self.vnf_server_addr[self.last_processed_vnf_index + 1]
 
-
     def get_cur_vnf(self):
         return self.service_chain.get_VNFs[self.last_processed_vnf_index]
-
 
     def get_next_required_vnf(self):
         if self.last_processed_vnf_index < len(self.service_chain.get_VNFs()) - 1:
             return self.service_chain.get_VNFs()[self.last_processed_vnf_index + 1]
 
-
     def finish_process(self):
         self.last_processed_vnf_index += 1
-
 
     def done(self):
         self.total_latency = env.now - self.create_time
@@ -124,20 +114,16 @@ class Packet:
     def get_size(self):
         return self.size
 
-
     def get_src(self):
         return self.src_addr
 
-
     def get_dest(self):
         return self.dest_addr
-
 
     @staticmethod
     def random_gen(packet_pool):
         p = random.choice(packet_pool)
         return Packet(0, 0, 0, 0).copy(p)
-
 
     @staticmethod
     def gen_packet_pool(servers, paths, chains):

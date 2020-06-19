@@ -97,7 +97,7 @@ def flow_generator(packet_pool):
         yield env.timeout(1)
         packet = Packet.random_gen(packet_pool)
         packet.create_time = env.now
-        packet.forward()
+        env.process(packet.forward())
 
 
 def main():
@@ -137,7 +137,7 @@ def main():
     packet_pool = Packet.gen_packet_pool(servers, paths, service_chains)
 
     # step6 create a packet from the packet pool and  simulate routing process.
-    #env.process(flow_generator(packet_pool, servers, t.links))
+    # env.process(flow_generator(packet_pool, servers, t.links))
 
     # single packet test
 

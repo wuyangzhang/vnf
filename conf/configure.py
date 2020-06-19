@@ -1,5 +1,5 @@
 class Configure:
     def __init__(self):
-        self.debug = True
+        self.debug = False
 
 configure = Configure()

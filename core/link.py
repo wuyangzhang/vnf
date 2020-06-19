@@ -44,16 +44,17 @@ class Link:
         while True:
             with self.forwarder.request() as req:
                 packet = yield self.buffer.get()
+
                 yield req
+
                 # forwarding the packet. KB / MB
                 forward_time = packet.get_size() / self.bandwidth / 1000
-
                 yield env.timeout(forward_time)
+
                 # print('link from {} to {} forwards the packet {} at time {}'.format(self.from_node.id, self.to_node.id,
                 #                                                                     packet.id, env.now))
 
-            yield env.timeout(self.propagation_latency)
-            packet.forward()
+                env.process(packet.forward(self.propagation_latency))
 
     def put(self, packet):
         self.buffer.put(packet)
