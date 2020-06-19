@@ -24,8 +24,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
 '''
 
-import collections
-
 import simpy
 
 from core.env import env
@@ -35,22 +33,30 @@ class Link:
     def __init__(self, from_node, to_node, bw, latency):
         self.from_node = from_node
         self.to_node = to_node
-        self.bandwidth = bw # Mbps
-        self.propagation_latency = latency # ms propagation latency
-        #self.queue = simpy.Store(env)
+        self.bandwidth = bw  # Mbps
+        self.propagation_latency = latency  # ms propagation latency
+        # self.queue = simpy.Store(env)
         self.env = env
-        self.queue = simpy.Resource(env, 1)
+        self.forwarder = simpy.Resource(env, 1)
+        self.buffer = simpy.Store(env)
 
-    def request_forward(self, packet):
-        with self.queue.request() as req:
-            yield req
-            # forwarding the packet. KB / MB +
-            forward_time = packet.get_size() / self.bandwidth / 1000 + self.propagation_latency
-            #print(forward_time)
-            yield env.timeout(forward_time)
-            print('link from {} to {} forwards the packet {} at time {}'.format(self.from_node.id, self.to_node.id, packet.id, env.now))
+    def run(self):
+        while True:
+            with self.forwarder.request() as req:
+                packet = yield self.buffer.get()
+                yield req
+                # forwarding the packet. KB / MB
+                forward_time = packet.get_size() / self.bandwidth / 1000
 
+                yield env.timeout(forward_time)
+                # print('link from {} to {} forwards the packet {} at time {}'.format(self.from_node.id, self.to_node.id,
+                #                                                                     packet.id, env.now))
+
+            yield env.timeout(self.propagation_latency)
             packet.forward()
+
+    def put(self, packet):
+        self.buffer.put(packet)
 
     def get_bw(self):
         return self.bandwidth
@@ -61,8 +67,6 @@ class Link:
     def __str__(self):
         return 'link from {} to {}'.format(self.from_node.id, self.to_node.id)
 
-    # def put(self, packet):
-    #     self.env.process(self.propagation_latency(packet))
     #
     # def get(self):
     #     return self.queue.get()

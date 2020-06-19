@@ -29,6 +29,8 @@ import simpy
 
 from core.env import env
 from core.virtualNetworkFunction import VirtualNetworkFunction
+from conf import configure
+
 
 types = {'m4.large': (2, 8),
          'm4.xlarge': (4, 16),
@@ -40,10 +42,31 @@ random.seed(4)
 
 
 class Process:
-    def __init__(self, vnf, proc_time=1):
+    def __init__(self, vnf, server, proc_time=1):
         self.vnf = vnf
         self.thread = simpy.Resource(env, 1)
+        self.buffer = simpy.Store(env)
         self.proc_time = proc_time
+        self.server = server
+
+    def put(self, packet):
+        self.buffer.put(packet)
+
+    def request(self):
+        return self.thread.request()
+
+    def process(self):
+        while True:
+            with self.request() as req:
+                packet = yield self.buffer.get()
+                # request one processor
+                yield req
+
+                # todo: find the processing time for each VNF
+                yield env.timeout(self.proc_time)
+                packet.finish_process()
+
+                self.server.out_buffer.put(packet)
 
 
 class Server:
@@ -56,7 +79,8 @@ class Server:
         self.avail_mem = self.mem
         self.attached_vnfs = list()
 
-        self.queue = simpy.Store(env)
+        self.in_buffer = simpy.Store(env)
+        self.out_buffer = simpy.Store(env)
         self.env = env
 
         # each process handles an individual VNF
@@ -64,65 +88,75 @@ class Server:
 
         self.links = None
 
+    def run(self):
+        env.process(self.in_packet_proc())
+        env.process(self.out_packet_proc())
+        self.create_vnf_processes()
+
     def create_vnf_processes(self):
         '''
         Create a process for each assigned VNF
         :return: processes dict
         '''
         for v in self.attached_vnfs:
-            self.processes[v.id] = Process(v)
+            p = self.processes[v.id] = Process(v, self)
+            env.process(p.process())
 
-    def recv_packet(self, packet):
-        self.queue.put(packet)
-
-    def run(self):
-        self.create_vnf_processes()
-        env.process(self.launch_process())
-
-    def launch_process(self):
+    def in_packet_proc(self):
         while True:
-            # keep pull out packets from the queue
-            packet = yield self.queue.get()
-            if packet.is_vnf_server():
+            # pull out packets from the queue
+            packet = yield self.in_buffer.get()
+            packet.update_cur_addr()
+
+            #print('id {}\n last_vnf {}\n routing_path {}\n vnf servers{}\n\n'.format(packet.id, packet.last_processed_vnf_index, packet.routing_path, packet.vnf_server_addr))
+
+            if configure.debug:
+                print('Server {} receives the packet {} at {}'.format(self.addr, packet.id, env.now))
+
+            if packet.need_vnf_proc():
                 vnf_id = packet.get_next_required_vnf().id
                 p = self.processes[vnf_id]
-                with p.thread.request() as req:
-                    # request one processor
-                    yield req
-                    print('server {} process packet {} at {}'.format(self.addr, packet.id, env.now))
-                    # todo: find the processing time for each VNF
-                    yield env.timeout(p.proc_time)
-                    packet.finish_process()
+                p.put(packet)
 
+            else:
+                self.out_buffer.put(packet)
+
+    def out_packet_proc(self):
+        '''
+        Process the packet ready to send out to the next hop or to finish the full forwarding.
+        :return:
+        '''
+        while True:
+            packet = yield self.out_buffer.get()
             # finish the processing of the packet.
+
+            if configure.debug:
+                print('Server {} sends the packet {} at {}'.format(self.addr, packet.id, env.now))
+
             if packet.is_dest_addr():
+                packet.done()
                 continue
 
             # the next VNF locates on the same server.
-            if packet.get_next_required_vnf() in self.attached_vnfs:
-                self.recv_packet(packet)
-                continue
+            # if packet.need_vnf_proc():
+            #     vnf_id = packet.get_next_required_vnf().id
+            #     p = self.processes[vnf_id]
+            #     p.put(packet)
+            #     continue
 
             # forward to the next hop
+
             cur_addr = packet.get_cur_addr()
             next_hop_addr = packet.get_next_hop_addr()
-            link = self.links[(cur_addr, next_hop_addr)]
 
-            env.process(link.request_forward(packet))
+            if cur_addr == next_hop_addr:
+                self.in_buffer.put(packet)
+            else:
+                link = self.links[(cur_addr, next_hop_addr)]
+                link.put(packet)
 
-    # def request_process(self, packet):
-    #     request_vnf = packet.get_next_required_vnf()
-    #     with self.processes[request_vnf.id].request() as req:
-    #         # request one processor
-    #         yield req
-    #         # processing the packet
-    #         print('server {} process packet {} at {}'.format(self.addr, packet.id, env.now))
-    #         # todo: find the processing time for each VNF
-    #         yield env.timeout(1.0)
-    #         packet.finish_process()
-
-    def print_avail_resources(self):
-        print('server {}: available CPU {}, available mem {}'.format(self.addr, self.avail_cpus, self.avail_mem))
+    def recv_packet(self, packet):
+        self.in_buffer.put(packet)
 
     def attach_vnf(self, vnf: VirtualNetworkFunction):
         '''
@@ -139,6 +173,9 @@ class Server:
         self.avail_cpus -= vnf.CPU
         self.avail_mem -= vnf.memory
         return True
+
+    def print_avail_resources(self):
+        print('server {}: available CPU {}, available mem {}'.format(self.addr, self.avail_cpus, self.avail_mem))
 
     @staticmethod
     def create_random_server(addr):
@@ -178,5 +215,4 @@ class Server:
             server = Server.create_random_server(node.id)
             server.links = links
             servers[node.id] = server
-
         return servers

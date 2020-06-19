@@ -28,6 +28,7 @@ import random
 import uuid
 
 from .routing import find_shortest_path
+from core.env import env
 
 random.seed(4)
 
@@ -35,67 +36,108 @@ random.seed(4)
 class Packet:
     def __init__(self, size, src, dest, servers):
         self.id = uuid.uuid4()
+
         self.size = size  # Byte
         self.src_addr = src
         self.dest_addr = dest
 
-        self.create_time = None
+        self.cur_addr_index = -1
+        self.next_hop_addr = -1
 
         self.service_chain = None
         self.routing_path = []
         self.vnf_server_addr = []
-        # self.cur_addr = -1
-        self.cur_addr_index = -1
-        self.next_hop_addr = -1
         self.next_server_addr = -1
         self.last_processed_vnf_index = -1
+
         self.servers = servers
 
+        # performance metrics
+        self.create_time = None
+        self.total_latency = -1
+
+    def copy(self, packet):
+
+        self.size = packet.size
+        self.src_addr = packet.src_addr
+        self.dest_addr = packet.dest_addr
+
+        self.service_chain = packet.service_chain
+        self.routing_path = packet.routing_path
+        self.vnf_server_addr = packet.vnf_server_addr
+
+        self.servers = packet.servers
+        return self
+
     def forward(self):
+        next_hop_addr = self.get_next_hop_addr()
+        next_server = self.servers[next_hop_addr]
+        next_server.recv_packet(self)
+
+
+    def update_cur_addr(self):
         self.cur_addr_index += 1
 
-        cur_addr = self.get_cur_addr()
-        cur_server = self.servers[cur_addr]
-        cur_server.recv_packet(self)
 
     def is_dest_addr(self):
         return self.cur_addr_index == len(self.routing_path) - 1
+
 
     def get_cur_addr(self):
         # print(self.cur_addr_index, len(self.routing_path))
         if self.cur_addr_index < len(self.routing_path):
             return self.routing_path[self.cur_addr_index]
 
+
+    def get_next_hop_addr(self):
+        if self.cur_addr_index + 1 < len(self.routing_path):
+            return self.routing_path[self.cur_addr_index + 1]
+
+
     def get_next_vnf_server_addr(self):
         if self.last_processed_vnf_index < len(self.service_chain.get_VNFs()) - 1:
             return self.vnf_server_addr[self.last_processed_vnf_index + 1]
 
-    def get_next_hop_addr(self):
-        if self.cur_addr_index < len(self.routing_path) - 1:
-            return self.routing_path[self.cur_addr_index + 1]
 
-    def is_vnf_server(self):
+    def need_vnf_proc(self):
         return self.last_processed_vnf_index + 1 < len(self.vnf_server_addr) and self.get_cur_addr() == \
                self.vnf_server_addr[self.last_processed_vnf_index + 1]
 
+
     def get_cur_vnf(self):
         return self.service_chain.get_VNFs[self.last_processed_vnf_index]
+
 
     def get_next_required_vnf(self):
         if self.last_processed_vnf_index < len(self.service_chain.get_VNFs()) - 1:
             return self.service_chain.get_VNFs()[self.last_processed_vnf_index + 1]
 
+
     def finish_process(self):
         self.last_processed_vnf_index += 1
+
+
+    def done(self):
+        self.total_latency = env.now - self.create_time
+        print('total packet processing latency : {} ms'.format(self.total_latency))
 
     def get_size(self):
         return self.size
 
+
     def get_src(self):
         return self.src_addr
 
+
     def get_dest(self):
         return self.dest_addr
+
+
+    @staticmethod
+    def random_gen(packet_pool):
+        p = random.choice(packet_pool)
+        return Packet(0, 0, 0, 0).copy(p)
+
 
     @staticmethod
     def gen_packet_pool(servers, paths, chains):
@@ -112,13 +154,13 @@ class Packet:
         cnt = 1000
         server_addrs = list(servers.keys())
         for _ in range(cnt):
-            size = random.gauss(1024, 400)
+            pkt_size = abs(random.gauss(1024, 200))
 
             # randomly select source and destination address
             src, dest = random.choice(server_addrs), random.choice(server_addrs)
             # if src == dest:
             #     continue
-            p = Packet(size, src, dest, servers)
+            p = Packet(pkt_size, src, dest, servers)
             p.cur_addr = src
 
             # randomly associate the packet to a service chain and
@@ -137,7 +179,10 @@ class Packet:
             # post-processing of the routing path
             # flatten the routing path
             for i in range(len(path) - 1):
-                p.routing_path += path[i][:-1]
+                if len(path[i]) > 1:
+                    p.routing_path += path[i][:-1]
+                else:
+                    p.routing_path += path[i]
             p.routing_path += path[-1]
 
             packets.append(p)

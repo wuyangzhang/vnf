@@ -75,6 +75,7 @@ class Topology:
                 propagation_latency = abs(random.gauss(2, 1))
                 self.links[a.id, b.id] = Link(a, b, 100, propagation_latency)
 
+
         return self.topology
 
     def get_links(self):

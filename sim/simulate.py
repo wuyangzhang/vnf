@@ -95,7 +95,7 @@ def flow_generator(packet_pool):
     # todo: consider to find a Poisson distribution for the packet generation or to use the wiki traffic trace.
     while True:
         yield env.timeout(1)
-        packet = random.choice(packet_pool)
+        packet = Packet.random_gen(packet_pool)
         packet.create_time = env.now
         packet.forward()
 
@@ -114,23 +114,23 @@ def main():
     t = Topology()
     t.load_network_graph(path='./topology/topology.txt')
     t.create_network_topology()
+    for link in t.links.values():
+        env.process(link.run())
 
     paths = cal_shortest_path(t.topology, t.links)
 
     # step2: initialize servers
     servers = Server.init_servers(t.get_nodes(), t.get_links())
 
-
     # step3: create service chains
     service_chains = [ServiceChain.random_gen() for _ in range(TOTAL_SERVICE_CHAIN_NUM)]
 
-    # step4: place service chains. single instance ... multiple instance ...
+    # step4: place service chains. single instance... multiple instance...
     for chain in service_chains:
         best_fit(servers, chain)
 
-    # dynamically launch VNF processes
+    # launch server processes
     for server in servers.values():
-        #env.process(server.proc_packet())
         server.run()
 
     # step5: generate a packet pool
